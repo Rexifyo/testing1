@@ -5,6 +5,7 @@
 import type { Peer } from './peer'
 import { createRootLogger, Logger } from '../../logger'
 import { SetTimeoutToken } from '../../utils'
+import { DisconnectingReason } from '../messages/disconnecting'
 import { PeerManager } from './peerManager'
 
 /**
@@ -30,6 +31,7 @@ export class PeerConnectionManager {
   private readonly logger: Logger
   private readonly peerManager: PeerManager
   readonly maxPeers: number
+  readonly keepOpenPeerSlot: boolean
 
   private started = false
   private eventLoopTimer?: SetTimeoutToken
@@ -39,11 +41,13 @@ export class PeerConnectionManager {
     logger: Logger = createRootLogger(),
     options: {
       maxPeers: number
+      keepOpenPeerSlot?: boolean
     },
   ) {
     this.peerManager = peerManager
     this.logger = logger.withTag('peerconnectionmanager')
     this.maxPeers = options.maxPeers
+    this.keepOpenPeerSlot = options.keepOpenPeerSlot ?? false
   }
 
   /**
@@ -101,6 +105,28 @@ export class PeerConnectionManager {
             this.peerManager.tryDisposePeer(peer)
           }
         }
+      }
+    }
+
+    const connectedPeers = this.peerManager.getConnectedPeers()
+    const maxPeerCount = this.maxPeers - Number(this.keepOpenPeerSlot)
+    if (connectedPeers.length > maxPeerCount) {
+      const numPeersToDisconnect = Math.min(1, connectedPeers.length - maxPeerCount)
+      const sorted = [...connectedPeers]
+        .sort((a, b) => a.connectedSince - b.connectedSince)
+        .slice(0, numPeersToDisconnect)
+
+      for (const peer of sorted) {
+        console.log(
+          `DISCONNECTING FROM ${
+            peer.displayName
+          } UNTIL ${this.peerManager.getCongestedDisconnectUntilTimestamp()}`,
+        )
+        this.peerManager.disconnect(
+          peer,
+          DisconnectingReason.Congested,
+          this.peerManager.getCongestedDisconnectUntilTimestamp(),
+        )
       }
     }
 

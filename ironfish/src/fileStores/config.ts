@@ -109,6 +109,7 @@ export type ConfigOptions = {
    */
   maxPeers: number
   minPeers: number
+  keepOpenPeerSlot: boolean
   /**
    * The ideal number of peers we'd like to be connected to. The node will attempt to
    * establish new connections when below this number.
@@ -352,6 +353,7 @@ export const ConfigOptionsSchema: yup.ObjectSchema<Partial<ConfigOptions>> = yup
     rpcHttpPort: YupUtils.isPort,
     maxPeers: YupUtils.isPositiveInteger,
     minPeers: YupUtils.isPositiveInteger,
+    keepOpenPeerSlot: yup.boolean(),
     targetPeers: yup.number().integer().min(1),
     telemetryApi: yup.string(),
     assetVerificationApi: yup.string(),
@@ -458,6 +460,7 @@ export class Config extends KeyStore<ConfigOptions> {
       rpcHttpHost: 'localhost',
       rpcHttpPort: 8021,
       maxPeers: 50,
+      keepOpenPeerSlot: false,
       confirmations: 2,
       minPeers: 1,
       targetPeers: 45,

@@ -74,6 +74,11 @@ export class Peer {
 
   metrics?: MetricsMonitor
 
+  private _connectedSince = 0
+  get connectedSince(): Readonly<number> {
+    return this._connectedSince
+  }
+
   /**
    * The current state of the peer.
    */
@@ -670,6 +675,7 @@ export class Peer {
     // Perform post-transition actions
     if (prevState.type !== 'CONNECTED' && this.state.type === 'CONNECTED') {
       this._error = null
+      this._connectedSince = performance.now()
     }
 
     if (prevState.type !== nextState.type) {
