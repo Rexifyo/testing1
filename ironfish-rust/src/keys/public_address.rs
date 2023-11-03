@@ -19,19 +19,14 @@ pub const PUBLIC_ADDRESS_SIZE: usize = 32;
 /// transmission key. Using the incoming_viewing_key allows
 /// the creation of a unique public addresses without revealing the viewing key.
 #[derive(Clone, Copy)]
-pub struct PublicAddress {
-    /// The transmission key is the result of combining the diversifier with the
-    /// incoming viewing key (a non-reversible operation). Together, the two
-    /// form a public address to which payments can be sent.
-    pub(crate) transmission_key: SubgroupPoint,
-}
+pub struct PublicAddress(pub(crate) SubgroupPoint);
 
 impl PublicAddress {
     /// Initialize a public address from its 32 byte representation.
     pub fn new(address_bytes: &[u8; PUBLIC_ADDRESS_SIZE]) -> Result<PublicAddress, IronfishError> {
-        let transmission_key = PublicAddress::load_transmission_key(&address_bytes[0..])?;
+        let public_address = PublicAddress::load_public_address(&address_bytes[0..])?;
 
-        Ok(PublicAddress { transmission_key })
+        Ok(PublicAddress(public_address))
     }
 
     /// Load a public address from a Read implementation (e.g: socket, file)
@@ -48,9 +43,7 @@ impl PublicAddress {
     }
 
     pub fn from_view_key(view_key: &IncomingViewKey) -> PublicAddress {
-        PublicAddress {
-            transmission_key: *PUBLIC_KEY_GENERATOR * view_key.view_key,
-        }
+        PublicAddress(*PUBLIC_KEY_GENERATOR * view_key.view_key)
     }
 
     /// Convert a String of hex values to a PublicAddress. The String must
@@ -65,7 +58,7 @@ impl PublicAddress {
 
     /// Retrieve the public address in byte form.
     pub fn public_address(&self) -> [u8; PUBLIC_ADDRESS_SIZE] {
-        self.transmission_key.to_bytes()
+        self.0.to_bytes()
     }
 
     /// Retrieve the public address in hex form.
@@ -80,15 +73,15 @@ impl PublicAddress {
         Ok(())
     }
 
-    pub(crate) fn load_transmission_key(
-        transmission_key_bytes: &[u8],
+    pub(crate) fn load_public_address(
+        public_address_bytes: &[u8],
     ) -> Result<SubgroupPoint, IronfishError> {
-        assert!(transmission_key_bytes.len() == 32);
-        let transmission_key_non_prime =
-            SubgroupPoint::from_bytes(transmission_key_bytes.try_into().unwrap());
+        assert!(public_address_bytes.len() == 32);
+        let public_address_non_prime =
+            SubgroupPoint::from_bytes(public_address_bytes.try_into().unwrap());
 
-        if transmission_key_non_prime.is_some().into() {
-            Ok(transmission_key_non_prime.unwrap())
+        if public_address_non_prime.is_some().into() {
+            Ok(public_address_non_prime.unwrap())
         } else {
             Err(IronfishError::new(IronfishErrorKind::InvalidPaymentAddress))
         }
@@ -109,7 +102,10 @@ impl std::cmp::PartialEq for PublicAddress {
 
 #[cfg(test)]
 mod test {
-    use crate::{keys::PUBLIC_ADDRESS_SIZE, PublicAddress, SaplingKey};
+    use crate::{
+        keys::{PublicAddress, PUBLIC_ADDRESS_SIZE},
+        SaplingKey,
+    };
 
     #[test]
     fn public_address_validation() {
